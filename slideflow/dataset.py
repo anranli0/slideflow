@@ -1223,7 +1223,7 @@ class Dataset:
                     thread.join()
                 if pb:
                     pb.stop()
-                if kwargs['pool'] is not None:
+                if 'pool' in kwargs and kwargs['pool'] is not None:
                     kwargs['pool'].close()
                 if report:
                     log.info('Generating PDF (this may take some time)...', )

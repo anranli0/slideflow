@@ -294,6 +294,9 @@ def _wsi_extraction_worker(
             image = region.pngsave_buffer()
         elif args.img_format in ('jpg', 'jpeg'):
             image = region.jpegsave_buffer()
+        elif args.img_format in ('tif', 'tiff'):
+            region = vips.Image.arrayjoin(region.bandsplit(), across=1)
+            image = region.tiffsave_buffer()
         else:
             raise ValueError(f"Unknown image format {args.img_format}")
 
@@ -413,6 +416,24 @@ class _VIPSWrapper:
             fail=True,
             access=vips.enums.Access.RANDOM
         )
+
+        if self.full_image.bands == 1 and 'n-pages' in self.full_image.get_fields():
+            self.full_image = vips.Image.new_from_file(
+                path,
+                fail=True,
+                access=vips.enums.Access.RANDOM,
+                n=-1
+            )
+            if 'page-height' in self.full_image.get_fields():
+                page_height = self.full_image.get("page-height")
+            else:
+                page_height = self.full_image.get("height")
+            pages = [self.full_image.crop(0, y, self.full_image.width, page_height) 
+                    for y in range(0, self.full_image.height, page_height)]
+            stiched = pages[0].bandjoin(pages[1:])
+            stiched = stiched.copy(interpretation="multiband")
+            self.full_image = stiched
+
         loaded_image = self.full_image
 
         # Load image properties
@@ -453,6 +474,10 @@ class _VIPSWrapper:
                                 f" {loaded_image.get('xres')} and "
                                 f"{loaded_image.get('resolution-unit')}"
                             )
+                        else:
+                            mpp_x = DEFAULT_JPG_MPP
+                            self.properties[OPS_MPP_X] = str(mpp_x)
+                            log.debug("Using default JPG MMP")
                     else:
                         name = path_to_name(path)
                         log.warning(
@@ -653,7 +678,7 @@ class _BaseLoader:
         if not os.path.exists(path):
             raise errors.SlideNotFoundError(f"Could not find slide {path}.")
         if filetype.lower() in sf.util.SUPPORTED_FORMATS:
-            if filetype.lower() in ('jpg', 'jpeg'):
+            if filetype.lower() in ('jpg', 'jpeg', 'tif'):
                 self.slide = _JPGslideToVIPS(path)  # type: _VIPSWrapper
             else:
                 try:
@@ -1074,7 +1099,7 @@ class _BaseLoader:
                 but do not export any images. Defaults to None.
         """
 
-        if img_format not in ('png', 'jpg', 'jpeg'):
+        if img_format not in ('png', 'jpg', 'jpeg', 'tif', 'tiff'):
             raise ValueError(f"Invalid image format {img_format}")
 
         # Make base directories
@@ -1530,7 +1555,7 @@ class WSI(_BaseLoader):
         tfrecord_dir: Optional[Path] = None,
         tiles_dir: Optional[Path] = None,
         img_format: str = 'jpg',
-        report: bool = True,
+        report: bool = False,
         **kwargs: Any
     ) -> Optional[SlideReport]:
         """Extracts tiles from slide using the build_generator() method,
