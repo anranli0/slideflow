@@ -253,15 +253,21 @@ def categorical_metrics(
         ]
         try:
             for i, fit in enumerate(p.imap(_generate_tile_roc, yt_and_yp)):
-                fit.save_roc(data_dir, f"{label_start}{outcome}_tile_ROC{i}")
-                fit.save_prc(data_dir, f"{label_start}{outcome}_tile_PRC{i}")
+                fit.save_roc(data_dir, f"{label_start}{outcome}_{level}_ROC{i}")
+                fit.save_prc(data_dir, f"{label_start}{outcome}_{level}_PRC{i}")
                 all_auc[outcome] += [fit.auroc]
                 all_ap[outcome] += [fit.ap]
-                log.info(
-                    f"{level}-level AUC (cat #{i:>2}): {fit.auroc:.3f} "
-                    f"{level}-level AP: {fit.ap:.3f} (opt. threshold: "
-                    f"{fit.opt_thresh:.3f})"
+                if any(val in (np.nan, None) for val in (fit.auroc, fit.ap, fit.opt_thresh)):
+                    log.info(
+                    f"{level}-level AUC (cat #{i:>2}): None "
+                    f"{level}-level AP: None"
                 )
+                else:
+                    log.info(
+                        f"{level}-level AUC (cat #{i:>2}): {fit.auroc:.3f} "
+                        f"{level}-level AP: {fit.ap:.3f} (opt. threshold: "
+                        f"{fit.opt_thresh:.3f})"
+                    )
         except ValueError as e:
             # Occurs when predictions contain NaN
             log.error(f'Error encountered when generating AUC: {e}')
