@@ -62,69 +62,69 @@ class ModelParams(_base._ModelParams):
         # 'DenseNet': kapps.DenseNet,
         # 'NASNet': kapps.NASNet
     }
+    OptDict = {
+        'Adam': tf.keras.optimizers.Adam,
+        'SGD': tf.keras.optimizers.SGD,
+        'RMSprop': tf.keras.optimizers.RMSprop,
+        'Adagrad': tf.keras.optimizers.Adagrad,
+        'Adadelta': tf.keras.optimizers.Adadelta,
+        'Adamax': tf.keras.optimizers.Adamax,
+        'Nadam': tf.keras.optimizers.Nadam
+    }
+    if hasattr(kapps, 'EfficientNetV2B0'):
+        ModelDict.update({'efficientnet_v2b0': kapps.EfficientNetV2B0})
+    if hasattr(kapps, 'EfficientNetV2B1'):
+        ModelDict.update({'efficientnet_v2b1': kapps.EfficientNetV2B1})
+    if hasattr(kapps, 'EfficientNetV2B2'):
+        ModelDict.update({'efficientnet_v2b2': kapps.EfficientNetV2B2})
+    if hasattr(kapps, 'EfficientNetV2B3'):
+        ModelDict.update({'efficientnet_v2b3': kapps.EfficientNetV2B3})
+    if hasattr(kapps, 'EfficientNetV2S'):
+        ModelDict.update({'efficientnet_v2s': kapps.EfficientNetV2S})
+    if hasattr(kapps, 'EfficientNetV2M'):
+        ModelDict.update({'efficientnet_v2m': kapps.EfficientNetV2M})
+    if hasattr(kapps, 'EfficientNetV2L'):
+        ModelDict.update({'efficientnet_v2l': kapps.EfficientNetV2L})
+    LinearLossDict = {
+        loss: getattr(tf.keras.losses, loss)
+        for loss in [
+            'mean_squared_error',
+            'mean_absolute_error',
+            'mean_absolute_percentage_error',
+            'mean_squared_logarithmic_error',
+            'squared_hinge',
+            'hinge',
+            'logcosh'
+        ]
+    }
+    LinearLossDict.update({
+        'negative_log_likelihood': tf_utils.negative_log_likelihood
+    })
+    AllLossDict = {
+        loss: getattr(tf.keras.losses, loss)
+        for loss in [
+            'mean_squared_error',
+            'mean_absolute_error',
+            'mean_absolute_percentage_error',
+            'mean_squared_logarithmic_error',
+            'squared_hinge',
+            'hinge',
+            'categorical_hinge',
+            'logcosh',
+            'huber',
+            'categorical_crossentropy',
+            'sparse_categorical_crossentropy',
+            'binary_crossentropy',
+            'kullback_leibler_divergence',
+            'poisson'
+        ]
+    }
+    AllLossDict.update({
+        'batch_loss_crossentropy': tf_utils.batch_loss_crossentropy,
+        'negative_log_likelihood': tf_utils.negative_log_likelihood
+    })
 
     def __init__(self, *args, **kwargs):
-        self.OptDict = {
-            'Adam': tf.keras.optimizers.Adam,
-            'SGD': tf.keras.optimizers.SGD,
-            'RMSprop': tf.keras.optimizers.RMSprop,
-            'Adagrad': tf.keras.optimizers.Adagrad,
-            'Adadelta': tf.keras.optimizers.Adadelta,
-            'Adamax': tf.keras.optimizers.Adamax,
-            'Nadam': tf.keras.optimizers.Nadam
-        }
-        if hasattr(kapps, 'EfficientNetV2B0'):
-            self.ModelDict.update({'efficientnet_v2b0': kapps.EfficientNetV2B0})
-        if hasattr(kapps, 'EfficientNetV2B1'):
-            self.ModelDict.update({'efficientnet_v2b1': kapps.EfficientNetV2B1})
-        if hasattr(kapps, 'EfficientNetV2B2'):
-            self.ModelDict.update({'efficientnet_v2b2': kapps.EfficientNetV2B2})
-        if hasattr(kapps, 'EfficientNetV2B3'):
-            self.ModelDict.update({'efficientnet_v2b3': kapps.EfficientNetV2B3})
-        if hasattr(kapps, 'EfficientNetV2S'):
-            self.ModelDict.update({'efficientnet_v2s': kapps.EfficientNetV2S})
-        if hasattr(kapps, 'EfficientNetV2M'):
-            self.ModelDict.update({'efficientnet_v2m': kapps.EfficientNetV2M})
-        if hasattr(kapps, 'EfficientNetV2L'):
-            self.ModelDict.update({'efficientnet_v2l': kapps.EfficientNetV2L})
-        self.LinearLossDict = {
-            loss: getattr(tf.keras.losses, loss)
-            for loss in [
-                'mean_squared_error',
-                'mean_absolute_error',
-                'mean_absolute_percentage_error',
-                'mean_squared_logarithmic_error',
-                'squared_hinge',
-                'hinge',
-                'logcosh'
-            ]
-        }
-        self.LinearLossDict.update({
-            'negative_log_likelihood': tf_utils.negative_log_likelihood
-        })
-        self.AllLossDict = {
-            loss: getattr(tf.keras.losses, loss)
-            for loss in [
-                'mean_squared_error',
-                'mean_absolute_error',
-                'mean_absolute_percentage_error',
-                'mean_squared_logarithmic_error',
-                'squared_hinge',
-                'hinge',
-                'categorical_hinge',
-                'logcosh',
-                'huber',
-                'categorical_crossentropy',
-                'sparse_categorical_crossentropy',
-                'binary_crossentropy',
-                'kullback_leibler_divergence',
-                'poisson'
-            ]
-        }
-        self.AllLossDict.update({
-            'batch_loss_crossentropy': tf_utils.batch_loss_crossentropy,
-            'negative_log_likelihood': tf_utils.negative_log_likelihood
-        })
         super().__init__(*args, **kwargs)
         assert self.model in self.ModelDict.keys()
         assert self.optimizer in self.OptDict.keys()
@@ -975,7 +975,7 @@ class Trainer:
             mixed_precision (bool, optional): Use FP16 mixed precision (rather
                 than FP32). Defaults to True.
             config (dict, optional): Training configuration dictionary, used
-                for logging. Defaults to None.
+                for logging and image format verification. Defaults to None.
             use_neptune (bool, optional): Use Neptune API logging.
                 Defaults to False
             neptune_api (str, optional): Neptune API token, used for logging.
@@ -1018,7 +1018,7 @@ class Trainer:
                 for i in range(outcome_labels.shape[1])
             ]
         outcome_names = sf.util.as_list(outcome_names)
-        if len(outcome_names) != outcome_labels.shape[1]:
+        if labels and (len(outcome_names) != outcome_labels.shape[1]):
             num_names = len(outcome_names)
             num_outcomes = outcome_labels.shape[1]
             raise errors.ModelError(f'Size of outcome_names ({num_names}) != '
@@ -1059,8 +1059,9 @@ class Trainer:
                 'hp': self.hp.get_dict(),
                 'backend': sf.backend()
             }
-        self.config = config
         sf.util.write_json(config, join(self.outdir, 'params.json'))
+        self.config = config
+        self.img_format = config['img_format'] if 'img_format' in config else None
 
         # Initialize Neptune
         self.use_neptune = use_neptune
@@ -1206,6 +1207,16 @@ class Trainer:
         )
         return vars(args)
 
+    def _verify_img_format(self, dataset: "sf.Dataset") -> None:
+        if self.img_format and not dataset.img_format:
+            log.warning("Unable to verify image format (PNG/JPG) of dataset.")
+        elif self.img_format and dataset.img_format != self.img_format:
+            log.error(
+                "Mismatched image formats. Expected '{}' per model config, "
+                "but dataset has format '{}'.".format(
+                    self.img_format,
+                    dataset.img_format))
+
     def load(self, model: str) -> tf.keras.Model:
         self.model = tf.keras.models.load_model(model)
 
@@ -1236,6 +1247,9 @@ class Trainer:
 
         if format not in ('csv', 'feather', 'parquet'):
             raise ValueError(f"Unrecognized format {format}")
+
+        # Verify image format
+        self._verify_img_format(dataset)
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)
@@ -1320,6 +1334,9 @@ class Trainer:
             if not isinstance(uq, bool):
                 raise ValueError(f"Unrecognized value {uq} for uq")
             self.hp.uq = uq
+
+        # Verify image format
+        self._verify_img_format(dataset)
 
         # Fit normalizer
         self._fit_normalizer(norm_fit)

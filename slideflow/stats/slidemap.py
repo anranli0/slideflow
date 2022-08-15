@@ -206,10 +206,11 @@ class SlideMap:
 
             # If UMAP already calculated, update predictions
             # if prediction filter is provided
-            logits = [
-                self.df.logits[row.slide][row.tfr_index]
-                for _, row in self.data.iterrows()
-            ]
+            if self.df.logits:
+                logits = [
+                    self.df.logits[row.slide][row.tfr_index]
+                    for _, row in self.data.iterrows()
+                ]
             predictions = np.argmax(np.array(logits), axis=1)
             self.data['logits'] = pd.Series(logits)
             self.data['predictions'] = pd.Series([p for p in predictions])
@@ -226,9 +227,6 @@ class SlideMap:
         coordinates = self.umap_transform(node_activations, **umap_kwargs)
 
         # Assemble dataframe
-        logits = np.concatenate([
-            self.df.logits[slide] for slide in self.slides
-        ])
         locations = np.concatenate([
             self.df.locations[slide] for slide in self.slides
         ])
@@ -245,10 +243,16 @@ class SlideMap:
             'slide': pd.Series(slides),
             'x': pd.Series(coordinates[:, 0]),
             'tfr_index': pd.Series(tfrecord_indices),
-            'logits': pd.Series([l for l in logits]).astype(object),
-            'prediction': pd.Series(np.argmax(logits, axis=1)),
             'location': pd.Series([l for l in locations]).astype(object)
         }
+        if self.df.logits:
+            logits = np.concatenate([
+                self.df.logits[slide] for slide in self.slides
+            ])
+            data_dict.update({
+                'prediction': pd.Series(np.argmax(logits, axis=1)),
+                'logits': pd.Series([l for l in logits]).astype(object),
+            })
         if self.df.uq and self.df.uncertainty != {}:  # type: ignore
             uncertainty = np.concatenate([
                 self.df.uncertainty[slide] for slide in self.slides
@@ -341,9 +345,6 @@ class SlideMap:
             )
 
             # Create dataframe
-            logits = np.stack([
-                self.df.logits[slide][opt_idx[slide]] for slide in self.slides
-            ])
             locations = np.stack([
                 self.df.locations[slide][opt_idx[slide]] for slide in self.slides
             ])
@@ -351,10 +352,16 @@ class SlideMap:
                 'slide': pd.Series(self.slides),
                 'x': pd.Series(coordinates[:, 0]),
                 'tfr_index': pd.Series(opt_idx[slide] for slide in self.slides),
-                'logits': pd.Series([l for l in logits]).astype(object),
-                'prediction': pd.Series(np.argmax(logits, axis=1)),
                 'location': pd.Series([l for l in locations]).astype(object)
             }
+            if self.df.logits:
+                logits = np.stack([
+                    self.df.logits[slide][opt_idx[slide]] for slide in self.slides
+                ])
+                data_dict.update({
+                    'logits': pd.Series([l for l in logits]).astype(object),
+                    'prediction': pd.Series(np.argmax(logits, axis=1)),
+                })
             if self.df.uq and self.df.uncertainty != {}:  # type: ignore
                 uncertainty = np.stack([
                     self.df.uncertainty[slide][opt_idx[slide]]
@@ -642,6 +649,7 @@ class SlideMap:
             # Check for categorical labels
             if (categorical is True
                or not pd.to_numeric(labels, errors='coerce').notnull().all()):
+
                 log.debug("Interpreting labels as categorical")
                 scatter_kwargs.update(
                     dict(hue=labels.astype('category'))
@@ -668,9 +676,8 @@ class SlideMap:
         ax.set_ylim(*((None, None) if not ylim else ylim))
         ax.set_xlim(*((None, None) if not xlim else xlim))
         if 'hue' in scatter_kwargs:
-            umap_2d.legend(
-                loc='center left',
-                bbox_to_anchor=(1.25, 0.5),
+            ax.legend(
+                loc='center right',
                 ncol=1,
                 title=legend
             )

@@ -486,7 +486,7 @@ def interleave(
                 weights += [prob_weights[tfr]]  # type: ignore
 
         # ------- Interleave and parse datasets -------------------------------
-        sampled_dataset = tf.data.experimental.sample_from_datasets(
+        sampled_dataset = tf.data.Dataset.sample_from_datasets(
             datasets,
             weights=weights
         )
@@ -513,6 +513,10 @@ def interleave(
             )
             if normalizer.vectorized:
                 dataset = dataset.unbatch()
+            if normalizer.method == 'macenko':
+                # Drop the images that causes an error, e.g. if eigen
+                # decomposition is unsuccessful.
+                dataset = dataset.apply(tf.data.experimental.ignore_errors())
 
         # ------- Standardize and augment images ------------------------------
         dataset = dataset.map(
