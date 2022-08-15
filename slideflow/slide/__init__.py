@@ -220,6 +220,7 @@ def _wsi_extraction_worker(
     # If downsampling is enabled, read image from highest level
     # to perform filtering; otherwise filter from our target level
     slide = _VIPSWrapper(args.path, silent=True)
+    assert slide.full_image.__array__().dtype == np.float32
     if args.whitespace_fraction < 1 or args.grayspace_fraction < 1:
         if args.filter_downsample_ratio > 1:
             filter_extract_px = args.extract_px // args.filter_downsample_ratio
@@ -484,6 +485,8 @@ class _VIPSWrapper:
                             f"Missing Microns-Per-Pixel (MPP) for {name}"
                         )
             except AttributeError:
+                self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
+            except OSError:
                 self.properties[OPS_MPP_X] = DEFAULT_JPG_MPP
             except UnidentifiedImageError:
                 log.error(
@@ -1166,7 +1169,8 @@ class _BaseLoader:
             if tiles_dir:
                 img_f = join(
                     tiles_dir,
-                    f'{self.shortname}_{index}.{img_format}'
+                    # f'{self.shortname}_{index}.{img_format}'
+                    f'{self.shortname}_{int(location[0])}_{int(location[1])}.{img_format}'
                 )
                 with open(img_f, 'wb') as outfile:
                     outfile.write(image_string)
