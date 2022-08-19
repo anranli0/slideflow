@@ -100,6 +100,9 @@ from random import shuffle
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple,
                     Union)
 
+import ants
+import SimpleITK as sitk
+import cv2
 import numpy as np
 import pandas as pd
 import shapely.geometry as sg
@@ -913,6 +916,66 @@ class Dataset:
             }
         return ret
 
+    def register(
+        self, 
+        slide_path: str = None, 
+        fixed_path: str = None, 
+        moving_path: str = None,
+        warped_path: str = None, 
+    ) -> str:
+        """Registrate slide to fixed target and write to file.
+        
+        Args:
+            slide_path: path to original slide
+            fixed_path: path to directory containing fixed jpg images
+            moving_path: path to directory containing moving jpg images
+            warped_path: path to directory where registered slides are written
+        
+        Return:
+            Path to registered slide.
+        """
+        fname = os.path.basename(slide_path).split('.')[0]
+        fixed_fpath = fixed_path + '/' + fname + '.jpg'
+        moving_fpath = moving_path + '/' + fname + '.jpg'
+        warped_fpath = warped_path + '/' + fname + '.tif'
+        if os.path.exists(warped_fpath):
+            return warped_fpath
+        
+        fixed_og = cv2.imread(fixed_fpath)
+        slide = sitk.GetArrayFromImage(sitk.ReadImage(slide_path))
+
+        # resize moving image to match fixed image
+        h, w = fixed_og.shape[0], fixed_og.shape[1]
+        nchannels = slide.shape[0]
+        slide_resized = np.zeros((nchannels, h, w), dtype=np.float32)
+        for i in range(nchannels):
+            slide_resized[i,:,:] = cv2.resize(fixed_og[i,:,:], (h, w), interpolation=cv2.INTER_AREA)
+        
+        # registration
+        moving = cv2.imread(moving_fpath, cv2.IMREAD_GRAYSCALE)
+        fixed = cv2.imread(fixed_fpath, cv2.IMREAD_GRAYSCALE)
+        warped = np.zeros((nchannels, h, w), dtype=np.float32)
+        
+        if fixed.shape[:2] != moving.shape[:2]:
+            moving = cv2.resize(moving, fixed.shape[:2], interpolation=cv2.INTER_AREA)
+
+        try:
+            res = ants.registration(ants.from_numpy(fixed), ants.from_numpy(moving), 
+                                    type_of_transform="Rigid", 
+                                    outprefix='./')
+        except:
+            log.info(f"Registration failed on {fname}, writing original moving image")
+            sitk.WriteImage(sitk.GetImageFromArray(slide_resized), warped_fpath)
+        else:
+            for i in range(nchannels):
+                warped[i,:,:] = ants.apply_transforms(
+                                    ants.from_numpy(fixed), 
+                                    ants.from_numpy(slide_resized[i,:,:]), 
+                                    res['fwdtransforms']).numpy()
+            sitk.WriteImage(sitk.GetImageFromArray(warped), warped_fpath)
+
+        return warped_fpath
+
     def extract_tiles(
         self,
         save_tiles: bool = False,
@@ -929,6 +992,9 @@ class Dataset:
         q_size: int = 4,
         qc: Optional[str] = None,
         report: bool = True,
+        fixed_path: str = None,
+        warped_path: str = None,
+        moving_path: str = None,
         **kwargs: Any
     ) -> Dict[str, SlideReport]:
         """Extract tiles from a group of slides, saving extracted tiles to
@@ -1076,6 +1142,12 @@ class Dataset:
 
             # Prepare list of slides for extraction
             slide_list = self.slide_paths(source=source)
+
+            if fixed_path and warped_path and moving_path:
+                slide_list = [
+                    self.register(s, fixed_path, warped_path, moving_path) 
+                    for s in slide_list
+                ]
 
             # Check for interrupted or already-extracted tfrecords
             if skip_extracted and save_tfrecords:
