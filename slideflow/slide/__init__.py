@@ -453,21 +453,15 @@ class _VIPSWrapper:
                             self.properties[OPS_MPP_X] = _mpp[0]
                     elif (sf.util.path_to_ext(path).lower() in ('tif', 'tiff')
                           and 'xres' in loaded_image.get_fields()):
-                        xres = loaded_image.get('xres')  # 4000.0
-                        if (xres == 4000.0
-                           and loaded_image.get('resolution-unit') == 'cm'):
-                            # xres = xres # though resolution from tiffinfo
-                            # says 40000 pixels/cm, for some reason the xres
-                            # val is 4000.0, so multipley by 10.
-                            # Convert from pixels/cm to cm/pixels, then convert
-                            # to microns by multiplying by 1000
-                            mpp_x = (1/xres) * 1000
-                            self.properties[OPS_MPP_X] = str(mpp_x)
-                            log.debug(
-                                f"Using MPP {mpp_x} per TIFF 'xres' field"
-                                f" {loaded_image.get('xres')} and "
-                                f"{loaded_image.get('resolution-unit')}"
-                            )
+                        xres = loaded_image.get('xres')
+                        # xres in pixels/mm
+                        mpp_x = (1/xres) * 1000
+                        self.properties[OPS_MPP_X] = str(mpp_x)
+                        log.debug(
+                            f"Using MPP {mpp_x} per TIFF 'xres' field"
+                            f" {loaded_image.get('xres')} and "
+                            f"{loaded_image.get('resolution-unit')}"
+                        )
                     else:
                         name = path_to_name(path)
                         log.warning(
