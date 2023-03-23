@@ -88,6 +88,8 @@ class TrainerConfigFastAI(TrainerConfig):
         self.batch_size = batch_size
         if model in ModelConfigMarugoto.valid_models:
             self.model_config = ModelConfigMarugoto(model=model, **kwargs)
+        elif model in ModelConfigPORPOISE.valid_models:
+            self.model_config = ModelConfigPORPOISE(model=model, **kwargs)
         else:
             self.model_config = ModelConfigCLAM(model=model, **kwargs)
 
@@ -172,6 +174,40 @@ class ModelConfigCLAM(DictConfig):
             return loss_utils.CrossEntropyWithInstanceLoss
         else:
             return loss_utils.CrossEntropyLoss
+
+
+class ModelConfigPORPOISE(DictConfig):
+    valid_models = ['surv_amil']
+    
+    def __init__(
+        self,
+        model='surv_amil',
+        mode='path',
+        model_size='small',
+        bag_loss='nll_surv',
+        bag_weight=0.7,
+        dropout=True,
+        opt='adam',
+        label_frac=1.0,
+        gc=32,
+        reg=1e-5,
+        alpha_surv=0.0,
+    ):
+        for argname, argval in dict(locals()).items():
+            setattr(self, argname, argval)
+
+    @property
+    def model_fn(self):
+        from .clam.models.model_set_mil import (MIL_Attention_FC_surv)
+        model_dict = {
+            'surv_amil': MIL_Attention_FC_surv,
+        }
+        return model_dict[self.model]
+    
+    @property
+    def loss_fn(self):
+        from .clam.utils.loss_utils import NLLSurvLoss
+        return NLLSurvLoss
 
 
 class ModelConfigMarugoto(DictConfig):

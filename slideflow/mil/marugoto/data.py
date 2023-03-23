@@ -36,6 +36,20 @@ def build_clam_dataset(bags, targets, encoder, bag_size):
         EncodedDataset(encoder, targets),
     )
 
+def build_survival_dataset(bags, targets, event, encoder, bag_size):
+    assert len(bags) == len(targets)
+
+    def _zip(bag, targets, event):
+        features, lengths = bag
+        return (features), (targets.squeeze(), event.squeeze())
+
+    return MapDataset(
+        _zip,
+        BagDataset(bags, bag_size=bag_size),
+        EncodedDataset(encoder, targets),
+        SingleDataset(event) 
+    )
+
 # -----------------------------------------------------------------------------
 
 def _to_fixed_size_bag(
@@ -155,3 +169,14 @@ class EncodedDataset(MapDataset):
         return torch.tensor(
             self.encode.transform(np.array(x).reshape(1, -1)), dtype=torch.float32
         )
+
+@dataclass
+class SingleDataset(Dataset):
+    arr: npt.NDArray
+    
+    def __len__(self):
+        return len(self.arr)
+    
+    def __getitem__(self, index: int) -> torch.Tensor:
+        return torch.tensor(self.arr[index], dtype=torch.float32)
+

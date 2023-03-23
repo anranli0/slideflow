@@ -230,6 +230,7 @@ def build_fastai_learner(
     outcomes: Union[str, List[str]],
     bags: Union[str, np.ndarray, List[str]],
     *,
+    event: str = None,
     outdir: str = 'mil',
 ) -> "Learner":
     """Build a FastAI Learner for training an aMIL model.
@@ -251,6 +252,8 @@ def build_fastai_learner(
             and the model will be saved.
         lr_max (float): Maximum learning rate.
         epochs (int): Maximum epochs.
+        event (str): Outcome column (annotation header) for event occurrence 
+            in survival analysis.
 
     Returns:
         fastai.learner.Learner
@@ -262,6 +265,12 @@ def build_fastai_learner(
     val_labels, unique_val = val_dataset.labels(outcomes, format='name')
     labels.update(val_labels)
     unique_categories = np.unique(unique_train + unique_val)
+
+    # Get event/censorship if using a survival model
+    if event:
+        _event, _ = train_dataset.labels(event, use_float=True)
+        _val_event, _ = val_dataset.labels(event, use_float=True)
+        _event.update(_val_event)
 
     # Prepare bags and targets
     if isinstance(bags, str):
@@ -279,6 +288,20 @@ def build_fastai_learner(
     val_slides = val_dataset.slides()
     val_idx = np.array([i for i, bag in enumerate(bags)
                             if path_to_name(bag) in val_slides])
+
+    if event:
+        _event_arr = np.array([_event[path_to_name(f)] for f in bags])
+        learner = _fastai.build_learner(
+            config,
+            bags=bags,
+            targets=targets,
+            event=_event_arr,
+            train_idx=train_idx,
+            val_idx=val_idx,
+            unique_categories=unique_categories,
+            outdir=outdir,
+        )
+        return learner
 
     # Build FastAI Learner
     learner = _fastai.build_learner(
@@ -300,6 +323,7 @@ def train_fastai(
     outcomes: Union[str, List[str]],
     bags: Union[str, List[str]],
     *,
+    event: str = None,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
 ) -> None:
@@ -324,6 +348,8 @@ def train_fastai(
         epochs (int): Maximum epochs.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
+        event (str): Outcome column (annotation header) for event occurrence 
+            in survival analysis.
 
     Returns:
         fastai.learner.Learner
@@ -345,6 +371,7 @@ def train_fastai(
         val_dataset,
         outcomes,
         bags=bags,
+        event=event,
         outdir=outdir,
     )
 
