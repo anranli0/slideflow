@@ -224,8 +224,42 @@ def _build_porpoise_learner(
     model.relocate()
 
     # Loss should weigh inversely to class occurences.
-    loss_func = config.loss_fn()
+    loss_func = config.loss_fn(alpha=config.model_config.alpha)
 
     # Create learning and fit.
     dls = DataLoaders(train_dl, val_dl)
     return Learner(dls, model, loss_func=loss_func, metrics=[loss_utils.ConcordanceIndexCensored()], path=outdir)
+
+def train_surv(learner, config, callbacks=None):
+    """Train an attention-based MIL survival model with FastAI.
+
+    Args:
+        learner (``fastai.learner.Learner``): FastAI learner.
+        config (``TrainerConfigFastAI``): Trainer and model configuration.
+
+    Keyword args:
+        callbacks (list(fastai.Callback)): FastAI callbacks. Defaults to None.
+    """
+    from fastai.callback.training import GradientAccumulation
+    cbs = [
+        SaveModelCallback(monitor=learner.metrics[0].name, fname=f"best_valid"),
+        GradientAccumulation(n_acc=config.model_config.gc),
+        CSVLogger(),
+    ]
+    if callbacks:
+        cbs += callbacks
+    if config.fit_one_cycle:
+        if config.lr_max is None:
+            lr_max = learner.lr_find().valley
+            log.info(f"Using auto-detected learning rate: {lr_max}")
+        else:
+            lr_max = config.lr_max
+        learner.fit_one_cycle(n_epoch=config.epochs, lr_max=lr_max, cbs=cbs)
+    else:
+        if config.lr is None:
+            lr = learner.lr_find().valley
+            log.info(f"Using auto-detected learning rate: {lr}")
+        else:
+            lr = config.lr
+        learner.fit(n_epoch=config.epochs, lr=lr, wd=config.wd, cbs=cbs)
+    return learner

@@ -182,16 +182,14 @@ class ModelConfigPORPOISE(DictConfig):
     def __init__(
         self,
         model='surv_amil',
-        mode='path',
-        model_size='small',
         bag_loss='nll_surv',
         bag_weight=0.7,
         dropout=True,
         opt='adam',
         label_frac=1.0,
-        gc=32,
+        gc=1,
         reg=1e-5,
-        alpha_surv=0.0,
+        alpha=0.0,
     ):
         for argname, argval in dict(locals()).items():
             setattr(self, argname, argval)

@@ -118,7 +118,7 @@ class ConcordanceIndexCensored(AccumMetric):
         event = np.asarray(self.event).astype(bool)
         targs = np.asarray(self.targs)
         preds = np.asarray(self.preds)
-        return concordance_index_censored(event, targs, preds, tied_tol=1e-08)[0]
+        return concordance_index_censored(event, targs, preds)[0]
 
 
 class NLLSurvLoss(nn.Module):
@@ -140,10 +140,9 @@ class NLLSurvLoss(nn.Module):
         self.reduction = reduction
 
     def __call__(self, output, target):
-        hazards, S, Y_hat, A_raw, results_dict = output
+        hazards, S, Y_hat, _, _ = output
         y_true, event = target 
         censor = 1 - event
-        # hazards 1x4, y_true 1x4, censor 1
         
         return self.nll_loss(
             h=hazards, 

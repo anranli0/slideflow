@@ -252,8 +252,7 @@ def build_fastai_learner(
             and the model will be saved.
         lr_max (float): Maximum learning rate.
         epochs (int): Maximum epochs.
-        event (str): Outcome column (annotation header) for event occurrence 
-            in survival analysis.
+        event (str): Outcome column (annotation header) for event occurrence.
 
     Returns:
         fastai.learner.Learner
@@ -323,7 +322,6 @@ def train_fastai(
     outcomes: Union[str, List[str]],
     bags: Union[str, List[str]],
     *,
-    event: str = None,
     outdir: str = 'mil',
     attention_heatmaps: bool = False,
 ) -> None:
@@ -348,8 +346,6 @@ def train_fastai(
         epochs (int): Maximum epochs.
         attention_heatmaps (bool): Generate attention heatmaps for slides.
             Defaults to False.
-        event (str): Outcome column (annotation header) for event occurrence 
-            in survival analysis.
 
     Returns:
         fastai.learner.Learner
@@ -371,7 +367,6 @@ def train_fastai(
         val_dataset,
         outcomes,
         bags=bags,
-        event=event,
         outdir=outdir,
     )
 
